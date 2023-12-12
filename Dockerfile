@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM nginx:1.25.3-alpine
+FROM ghcr.io/linuxserver/baseimage-alpine:3.18
 
 # install packages
 RUN \
