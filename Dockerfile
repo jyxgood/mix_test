@@ -2,6 +2,7 @@
 
 FROM nginx:1.25.3-alpine
 
+ENV S6_STAGE2_HOOK="/init-hook"
 # install packages
 RUN \
   echo "**** install build packages ****" && \
@@ -26,7 +27,19 @@ RUN \
     php82-xml \
     php82-xmlwriter \
     php82-zip \
-    php82-zlib && \
+    php82-zlib \
+    fontconfig \
+    mariadb-client \
+    memcached \
+    php82-dom \
+    php82-gd \
+    php82-ldap \
+    php82-mysqlnd \
+    php82-pdo_mysql \
+    php82-pecl-memcached \
+    php82-tokenizer \
+    qt5-qtbase \
+    ttf-freefont && \
   echo "**** configure nginx ****" && \
   echo 'fastcgi_param  HTTP_PROXY         ""; # https://httpoxy.org/' >> \
     /etc/nginx/fastcgi_params && \
@@ -66,8 +79,27 @@ RUN \
   sed -i "s#/var/log/messages {}.*# #g" \
     /etc/logrotate.conf && \
   sed -i 's#/usr/sbin/logrotate /etc/logrotate.conf#/usr/sbin/logrotate /etc/logrotate.conf -s /config/log/logrotate.status#g' \
-    /etc/periodic/daily/logrotate
-
+    /etc/periodic/daily/logrotate && \
+  echo "**** configure php-fpm to pass env vars ****" && \
+  sed -E -i 's/^;?clear_env ?=.*$/clear_env = no/g' /etc/php82/php-fpm.d/www.conf && \
+  grep -qxF 'clear_env = no' /etc/php82/php-fpm.d/www.conf || echo 'clear_env = no' >> /etc/php82/php-fpm.d/www.conf && \
+  echo "env[PATH] = /usr/local/bin:/usr/bin:/bin" >> /etc/php82/php-fpm.conf && \
+  echo "**** fetch bookstack ****" && \
+  mkdir -p\
+    /app/www && \
+  curl -o \
+    /tmp/bookstack.tar.gz -L \
+    "https://codeload.github.com/BookStackApp/BookStack/tar.gz/refs/tags/v23.10.4" && \
+  tar xf \
+    /tmp/bookstack.tar.gz -C \
+    /app/www/ --strip-components=1 && \
+  echo "**** install composer dependencies ****" && \
+  composer install -d /app/www/ && \
+  echo "**** cleanup ****" && \
+  rm -rf \
+    /tmp/* \
+    $HOME/.cache \
+    $HOME/.composer
 # add local files
 COPY root/ /
 
