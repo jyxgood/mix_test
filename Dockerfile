@@ -6,6 +6,7 @@ FROM ajoergensen/baseimage-alpine:3.18
 RUN \
   echo "**** install build packages ****" && \
   apk add --no-cache \
+    nginx \
     apache2-utils \
     git \
     logrotate \
