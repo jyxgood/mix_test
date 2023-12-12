@@ -2,7 +2,6 @@
 
 FROM nginx:1.25.3-alpine
 
-ENV S6_STAGE2_HOOK="/init-hook"
 # install packages
 RUN \
   echo "**** install build packages ****" && \
@@ -27,19 +26,7 @@ RUN \
     php82-xml \
     php82-xmlwriter \
     php82-zip \
-    php82-zlib \
-    fontconfig \
-    mariadb-client \
-    memcached \
-    php82-dom \
-    php82-gd \
-    php82-ldap \
-    php82-mysqlnd \
-    php82-pdo_mysql \
-    php82-pecl-memcached \
-    php82-tokenizer \
-    qt5-qtbase \
-    ttf-freefont && \
+    php82-zlib && \
   echo "**** configure nginx ****" && \
   echo 'fastcgi_param  HTTP_PROXY         ""; # https://httpoxy.org/' >> \
     /etc/nginx/fastcgi_params && \
@@ -79,7 +66,34 @@ RUN \
   sed -i "s#/var/log/messages {}.*# #g" \
     /etc/logrotate.conf && \
   sed -i 's#/usr/sbin/logrotate /etc/logrotate.conf#/usr/sbin/logrotate /etc/logrotate.conf -s /config/log/logrotate.status#g' \
-    /etc/periodic/daily/logrotate && \
+    /etc/periodic/daily/logrotate
+
+# add local files
+COPY root/ /
+
+ARG BUILD_DATE
+ARG VERSION
+ARG BOOKSTACK_RELEASE
+LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+LABEL maintainer="homerr"
+
+ENV S6_STAGE2_HOOK="/init-hook"
+
+RUN \
+  echo "**** install runtime packages ****" && \
+  apk add --no-cache \
+    fontconfig \
+    mariadb-client \
+    memcached \
+    php82-dom \
+    php82-gd \
+    php82-ldap \
+    php82-mysqlnd \
+    php82-pdo_mysql \
+    php82-pecl-memcached \
+    php82-tokenizer \
+    qt5-qtbase \
+    ttf-freefont && \
   echo "**** configure php-fpm to pass env vars ****" && \
   sed -E -i 's/^;?clear_env ?=.*$/clear_env = no/g' /etc/php82/php-fpm.d/www.conf && \
   grep -qxF 'clear_env = no' /etc/php82/php-fpm.d/www.conf || echo 'clear_env = no' >> /etc/php82/php-fpm.d/www.conf && \
@@ -87,9 +101,13 @@ RUN \
   echo "**** fetch bookstack ****" && \
   mkdir -p\
     /app/www && \
+  if [ -z ${BOOKSTACK_RELEASE+x} ]; then \
+    BOOKSTACK_RELEASE=$(curl -sX GET "https://api.github.com/repos/bookstackapp/bookstack/releases/latest" \
+    | awk '/tag_name/{print $4;exit}' FS='[""]'); \
+  fi && \
   curl -o \
     /tmp/bookstack.tar.gz -L \
-    "https://codeload.github.com/BookStackApp/BookStack/tar.gz/refs/tags/v23.10.4" && \
+    "https://github.com/BookStackApp/BookStack/archive/${BOOKSTACK_RELEASE}.tar.gz" && \
   tar xf \
     /tmp/bookstack.tar.gz -C \
     /app/www/ --strip-components=1 && \
@@ -100,7 +118,8 @@ RUN \
     /tmp/* \
     $HOME/.cache \
     $HOME/.composer
-# add local files
+
+# copy local files
 COPY root/ /
 
 # ports and volumes
