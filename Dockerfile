@@ -69,7 +69,7 @@ RUN \
     /etc/periodic/daily/logrotate
 
 # add local files
-COPY root/ /
+COPY root1/ /
 
 ARG BUILD_DATE
 ARG VERSION
@@ -120,7 +120,7 @@ RUN \
     $HOME/.composer
 
 # copy local files
-COPY root/ /
+COPY root2/ /
 
 # ports and volumes
 EXPOSE 80 443
